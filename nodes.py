@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 
-from utils import SlotDefinedClass, merge_dicts
+from utils import *
 from builtin_types import *
+
+
+INDENT_SIZE = 4
 
 
 class Node(SlotDefinedClass):
@@ -13,7 +16,7 @@ class Node(SlotDefinedClass):
         raise NotImplementedError
 
     def __str__(self):
-        return "\n".join(self.lines())
+        return "\n".join(map(str, self.lines()))
 
     def __iter__(self):
         yield from self.lines()
@@ -25,7 +28,6 @@ Generic blocks and text
 
 class Module(Node):
     __slots__ = ("contents", )
-    __types__ = {"contents": [Node]}
     __defaults__ = {"contents": []}
 
     def lines(self):
@@ -36,7 +38,6 @@ class Module(Node):
 class InlineText(Node):
     """InlineText text."""
     __slots__ = ("text", )
-    __types__ = {"text": str}
     __defaults__ = {"text": ""}
 
     def lines(self):
@@ -52,7 +53,6 @@ class VariableDeclaration(Node):
     {type} {varname}
     """
     __slots__ = ("type", "name")
-    __types__ = {"type": Type, "name": str}
 
     def lines(self):
         yield "{} {}".format(self.type, self.name)
@@ -63,7 +63,6 @@ class ArgumentDeclarations(Node):
     {VariableDeclaration}, {VariableDeclaration}, ...
     """
     __slots__ = ("args", )
-    __types__ = {"args": [VariableDeclaration]}
 
     def lines(self):
         yield ", ".join(map(str, self.args))
@@ -71,18 +70,114 @@ class ArgumentDeclarations(Node):
 
 class FunctionDeclaration(Node):
     __slots__ = ("name", "return_type", "args")
-    __types__ = {
-        "name": str,
-        "return_type": Type,
-        "args": ArgumentDeclarations,
-    }
 
     def lines(self):
         yield "{return_type} {name}({args})".format(
             return_type=self.return_type,
             name=self.name,
-            args=next(self.args.lines())
+            args=self.args
         )
+
+
+"""
+Expressions
+"""
+
+class Expression(Node):
+    pass
+
+
+class Variable(Expression):
+    __slots__ = ("name", )
+
+    def lines(self):
+        yield self.name
+
+
+class Literal(Expression):
+    __slots__ = ("value", )
+
+    def lines(self):
+        yield self.value
+
+
+class StringLiteral(Literal):
+    __types__ = {"value": str}
+
+    def lines(self):
+        yield '"{}"'.format(self.value)
+
+
+class IntLiteral(Literal):
+    __types__ = {"value": int}
+
+    def lines(self):
+        yield str(self.value)
+
+
+class FloatLiteral(Literal):
+    __types__ = {"value": float}
+
+    def lines(self):
+        yield str(self.value)
+
+
+class FunctionCall(Expression):
+    __slots__ = ("func_name", "args")
+    __types__ = {
+        "func_name": str,
+        "args": [Expression]
+    }
+
+    def lines(self):
+        yield "{name}({args})".format(
+            name=self.func_name,
+            args=", ".join(map(str, self.args))
+        )
+
+
+
+"""
+Definitions
+"""
+
+class VariableDefinition(Node):
+    """
+    [type] {name} = {expr}
+    """
+    __slots__ = ("name", "expr", "type")
+    __defaults__ = {"type": None}
+
+    def lines(self):
+        fmt = "{name} = {expr}"
+        if self.type is not None:
+            fmt = "{type} " + fmt
+        yield fmt.format(
+            type=self.type,
+            name=self.name,
+            expr=self.expr
+        )
+
+
+class FunctionDefinition(Node):
+    """
+    {return_type} {name}({args}){{
+        {body}
+    }}
+    """
+    __slots__ = ("return_type", "name", "args", "body")
+
+    def lines(self):
+        yield "{return_type} {name}({args}){{".format(
+            return_type=self.return_type,
+            name=self.name,
+            args=self.args
+        )
+        for part in self.body:
+            for line in part.lines():
+                yield " " * INDENT_SIZE + line
+        yield "}"
+
 
 
 """
@@ -96,7 +191,6 @@ class Statement(Node):
     {operation};
     """
     __slots__ = ("operation", )
-    __types__ = {"operation": Node}
 
     def lines(self):
         # Make the last element have a semicolon included
@@ -110,4 +204,65 @@ class Statement(Node):
         # val is the last elem in the iterator
         yield "{};".format(val)
 
+
+"""
+Control flow
+"""
+
+class If(Statement):
+    """
+    If requires at least 1 condition.
+    bodies is a list of lists containing Nodes.
+    There must be at least 1 body for every condition.
+    For n conditions, there can be either n or n+1 bodies,
+    where the first n are the bodies for each respective condition,
+    and the last is the else condition.
+
+    if ({cond1}){
+        {body1}
+    }
+    else if ({cond2}){
+        {body2}
+    }
+    ...
+    else if ({condn}){
+        {bodyn}
+    }
+    else {
+        {bodyn+1}
+    }
+    """
+
+    __slots__ = ("conditions", "bodies")
+    __types__ = {
+        "conditions": [Expression],
+        "bodies": [[Node]]
+    }
+
+    def __body_lines(self, body):
+        for node in body:
+            for line in node.lines():
+                yield " " * INDENT_SIZE + line
+
+    def lines(self):
+        yield "if ({cond}){{".format(
+            cond=self.conditions[0]
+        )
+        # First body
+        yield from self.__body_lines(self.bodies[0])
+        yield "}"
+
+        # Else if statements
+        for i in range(1, len(self.conditions)):
+            yield "else if ({cond}){{".format(
+                cond=self.conditions[i]
+            )
+            yield from self.__body_lines(self.bodies[i])
+            yield "}"
+
+
+        if len(self.bodies) > len(self.conditions):
+            yield "else {"
+            yield from self.__body_lines(self.bodies[len(self.conditions)])
+            yield "}"
 

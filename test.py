@@ -72,6 +72,149 @@ class TestNodes(unittest.TestCase):
             ]))
         ), "void func(int arg1, char* arg2)")
 
+    def test_variable_definition(self):
+        """Test variable definition node."""
+        self.assertEqual(str(VariableDefinition(
+            name="x",
+            type=IntType(),
+            expr=Literal(2),
+        )), "int x = 2")
+
+        self.assertEqual(str(VariableDefinition(
+            name="x",
+            expr=Literal(2),
+        )), "x = 2")
+
+    def test_function_definition(self):
+        """Test function definition."""
+        self.assertEqual(str(FunctionDefinition(
+            return_type=VoidType(),
+            name="main",
+            args=ArgumentDeclarations([
+                VariableDeclaration(IntType(), "argc"),
+                VariableDeclaration(Pointer(StringType()), "argv")
+            ]),
+            body=[
+                Statement(VariableDefinition(
+                    type=IntType(),
+                    name="x",
+                    expr=2,
+                )),
+                Statement(VariableDefinition(
+                    type=CharType(),
+                    name="c",
+                    expr="'s'",
+                )),
+                Statement(VariableDefinition(
+                    name="c",
+                    expr="'a'",
+                )),
+            ]
+        )), """
+void main(int argc, char** argv){
+    int x = 2;
+    char c = 's';
+    c = 'a';
+}""".strip())
+
+    def test_function_call(self):
+        """Test function call node."""
+        self.assertEqual(str(FunctionCall(
+            func_name="printf",
+            args=[
+                StringLiteral("abc"),
+                IntLiteral(123)
+            ]
+        )), "printf(\"abc\", 123)")
+
+    def test_if_statement(self):
+        """Test if statement."""
+        self.assertEqual(str(If(
+            conditions=[Variable("x")],
+            bodies=[[Statement(Variable("a"))]]
+        )), """
+if (x){
+    a;
+}""".strip())
+
+        self.assertEqual(str(If(
+            conditions=[Variable("x")],
+            bodies=[
+                [Statement(Variable("a"))],
+                [Statement(Variable("b"))],
+            ]
+        )), """
+if (x){
+    a;
+}
+else {
+    b;
+}""".strip())
+
+        self.assertEqual(str(If(
+            conditions=[Variable("x"), Variable("y")],
+            bodies=[
+                [Statement(Variable("a"))],
+                [Statement(Variable("b"))],
+            ]
+        )), """
+if (x){
+    a;
+}
+else if (y){
+    b;
+}""".strip())
+
+        self.assertEqual(str(If(
+            conditions=[
+                Variable("x"),
+                Variable("y"),
+                Variable("z"),
+            ],
+            bodies=[
+                [Statement(Variable("a"))],
+                [Statement(Variable("b"))],
+                [Statement(Variable("c"))],
+            ]
+        )), """
+if (x){
+    a;
+}
+else if (y){
+    b;
+}
+else if (z){
+    c;
+}""".strip())
+
+        self.assertEqual(str(If(
+            conditions=[
+                Variable("x"),
+                Variable("y"),
+                Variable("z"),
+            ],
+            bodies=[
+                [Statement(Variable("a"))],
+                [Statement(Variable("b"))],
+                [Statement(Variable("c"))],
+                [Statement(Variable("d"))],
+            ]
+        )), """
+if (x){
+    a;
+}
+else if (y){
+    b;
+}
+else if (z){
+    c;
+}
+else {
+    d;
+}
+""".strip())
+
+
 
 if __name__ == "__main__":
     unittest.main()

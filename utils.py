@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
 
+
+# Since NoneType is not actually defined, yet is returned by 'type(None)'
+NoneType = type(None)
+
+
 class SlotDefinedClass(object):
     __slots__ = tuple()  # Names of attributes
     __types__ = {}  # Optional mapping of attribute to expected type

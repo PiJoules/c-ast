@@ -214,6 +214,52 @@ else {
 }
 """.strip())
 
+        # Nested if statements
+        self.assertEqual(str(If(
+            conditions=[Variable("x")],
+            bodies=[
+                [
+                    If(
+                        conditions=[Variable("y")],
+                        bodies=[[Statement(Variable("b"))]],
+                    )
+                ]
+            ]
+        )), """
+if (x){
+    if (y){
+        b;
+    }
+}""".strip())
+
+    def test_while(self):
+        """Test while loop."""
+        self.assertEqual(str(While(
+            condition=Variable("x"),
+            body=[Statement(Variable("y"))]
+        )), """
+while (x){
+    y;
+}
+""".strip())
+
+        # Nested while
+        self.assertEqual(str(While(
+            condition=Variable("x"),
+            body=[
+                While(
+                    condition=Variable("y"),
+                    body=[Statement(Variable("z"))]
+                )
+            ]
+        )), """
+while (x){
+    while (y){
+        z;
+    }
+}
+""".strip())
+
 
 
 if __name__ == "__main__":

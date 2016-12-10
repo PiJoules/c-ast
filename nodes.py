@@ -21,6 +21,11 @@ class Node(SlotDefinedClass):
     def __iter__(self):
         yield from self.lines()
 
+    def _body_lines(self, body):
+        for node in body:
+            for line in node.lines():
+                yield " " * INDENT_SIZE + line
+
 
 """
 Generic blocks and text
@@ -209,7 +214,7 @@ class Statement(Node):
 Control flow
 """
 
-class If(Statement):
+class If(Node):
     """
     If requires at least 1 condition.
     bodies is a list of lists containing Nodes.
@@ -239,17 +244,12 @@ class If(Statement):
         "bodies": [[Node]]
     }
 
-    def __body_lines(self, body):
-        for node in body:
-            for line in node.lines():
-                yield " " * INDENT_SIZE + line
-
     def lines(self):
         yield "if ({cond}){{".format(
             cond=self.conditions[0]
         )
         # First body
-        yield from self.__body_lines(self.bodies[0])
+        yield from self._body_lines(self.bodies[0])
         yield "}"
 
         # Else if statements
@@ -257,12 +257,36 @@ class If(Statement):
             yield "else if ({cond}){{".format(
                 cond=self.conditions[i]
             )
-            yield from self.__body_lines(self.bodies[i])
+            yield from self._body_lines(self.bodies[i])
             yield "}"
 
 
         if len(self.bodies) > len(self.conditions):
             yield "else {"
-            yield from self.__body_lines(self.bodies[len(self.conditions)])
+            yield from self._body_lines(self.bodies[len(self.conditions)])
             yield "}"
+
+
+class While(Node):
+    __slots__ = ("condition", "body")
+    __types__ = {
+        "condition": Expression,
+        "body": [Node]
+    }
+
+    def lines(self):
+        yield "while ({cond}){{".format(
+            cond=self.condition
+        )
+        yield from self._body_lines(self.body)
+        yield "}"
+
+
+
+class DoWhile(Node):
+    pass
+
+
+class For(Node):
+    pass
 

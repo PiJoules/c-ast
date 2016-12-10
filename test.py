@@ -39,11 +39,9 @@ class TestNodes(unittest.TestCase):
         self.assertEqual(str(InlineText(text="abc")), "abc")
 
     def test_declaration(self):
-        """Test Declaration node."""
-        self.assertEqual(str(Declaration(IntType(), "x")), "int x")
-        self.assertEqual(str(Declaration(Type("custom type"), "x")), "custom type x")
-
-        self.assertEqual(str(VariableDeclaration(IntType(), "x")), "int x;")
+        """Test VariableDeclaration node."""
+        self.assertEqual(str(VariableDeclaration(IntType(), "x")), "int x")
+        self.assertEqual(str(VariableDeclaration(Type("custom type"), "x")), "custom type x")
 
     def test_statement(self):
         """Test base statement node."""
@@ -53,6 +51,26 @@ class TestNodes(unittest.TestCase):
             Statement(InlineText("text2")),
         ])
         self.assertEqual(str(node), "text1;\ntext2;")
+
+    def test_func_arguments(self):
+        """Test function argument declarations."""
+        self.assertEqual(str(
+            ArgumentDeclarations([
+                VariableDeclaration(IntType(), "arg1"),
+                VariableDeclaration(StringType(), "arg2"),
+            ])
+        ), "int arg1, char* arg2")
+
+    def test_func_declaration(self):
+        """Test function declaration node."""
+        self.assertEqual(str(FunctionDeclaration(
+            return_type=VoidType(),
+            name="func",
+            args=ArgumentDeclarations([
+                VariableDeclaration(IntType(), "arg1"),
+                VariableDeclaration(StringType(), "arg2"),
+            ]))
+        ), "void func(int arg1, char* arg2)")
 
 
 if __name__ == "__main__":

@@ -32,6 +32,11 @@ class FloatType(Type):
         super().__init__(name="float")
 
 
+class VoidType(Type):
+    def __init__(self):
+        super().__init__(name="void")
+
+
 class Pointer(Type):
     __slots__ = ("type", )
     __types__ = {"type": Type}

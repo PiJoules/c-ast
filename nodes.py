@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from utils import SlotDefinedClass
+from utils import SlotDefinedClass, merge_dicts
 from builtin_types import *
 
 
@@ -47,7 +47,7 @@ class InlineText(Node):
 Declarations
 """
 
-class Declaration(Node):
+class VariableDeclaration(Node):
     """
     {type} {varname}
     """
@@ -56,6 +56,33 @@ class Declaration(Node):
 
     def lines(self):
         yield "{} {}".format(self.type, self.name)
+
+
+class ArgumentDeclarations(Node):
+    """
+    {VariableDeclaration}, {VariableDeclaration}, ...
+    """
+    __slots__ = ("args", )
+    __types__ = {"args": [VariableDeclaration]}
+
+    def lines(self):
+        yield ", ".join(map(str, self.args))
+
+
+class FunctionDeclaration(Node):
+    __slots__ = ("name", "return_type", "args")
+    __types__ = {
+        "name": str,
+        "return_type": Type,
+        "args": ArgumentDeclarations,
+    }
+
+    def lines(self):
+        yield "{return_type} {name}({args})".format(
+            return_type=self.return_type,
+            name=self.name,
+            args=next(self.args.lines())
+        )
 
 
 """
@@ -82,11 +109,5 @@ class Statement(Node):
             next_val = next(lines, None)
         # val is the last elem in the iterator
         yield "{};".format(val)
-
-
-class VariableDeclaration(Statement):
-    """Wrapper for Declaration as a statement."""
-    def __init__(self, type, name):
-        super().__init__(Declaration(type, name))
 
 

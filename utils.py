@@ -71,3 +71,11 @@ class SlotDefinedClass(object):
                 self.__check_type(attr, next(val.values()), next(expected.values()))
         else:
             raise RuntimeError("Uknown type handling for type '{}'".format(expected))
+
+
+def merge_dicts(d1, d2):
+    d1_copy = d1.copy()
+    d1_copy.update(d2)
+    return d1_copy
+
+

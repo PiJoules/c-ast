@@ -3,8 +3,8 @@
 
 import unittest
 
-from nodes import *
-from builtin_types import *
+from cast.nodes import *
+from cast.builtin_types import *
 
 
 class TestTypes(unittest.TestCase):
@@ -77,12 +77,12 @@ class TestNodes(unittest.TestCase):
         self.assertEqual(str(VariableDefinition(
             name="x",
             type=IntType(),
-            expr=Literal(2),
+            expr=IntLiteral(2),
         )), "int x = 2")
 
         self.assertEqual(str(VariableDefinition(
             name="x",
-            expr=Literal(2),
+            expr=IntLiteral(2),
         )), "x = 2")
 
     def test_function_definition(self):
@@ -98,16 +98,16 @@ class TestNodes(unittest.TestCase):
                 Statement(VariableDefinition(
                     type=IntType(),
                     name="x",
-                    expr=2,
+                    expr=IntLiteral(2),
                 )),
                 Statement(VariableDefinition(
                     type=CharType(),
                     name="c",
-                    expr="'s'",
+                    expr=CharLiteral("s"),
                 )),
                 Statement(VariableDefinition(
                     name="c",
-                    expr="'a'",
+                    expr=CharLiteral("a"),
                 )),
             ]
         )), """
@@ -259,6 +259,24 @@ while (x){
     }
 }
 """.strip())
+
+    def test_dow_while(self):
+        """Test do while loop."""
+        self.assertEqual(str(DoWhile(
+            condition=Variable("x"),
+            body=[Statement(Variable("y"))]
+        )), """
+do {
+    y;
+} while (x);""".strip())
+
+#    def test_for_loop(self):
+#        """Test for loop."""
+#        self.assertEqual(str(), """
+#for (int i = 0; i < 2; i++){
+#    z;
+#}
+#                         """.strip())
 
 
 

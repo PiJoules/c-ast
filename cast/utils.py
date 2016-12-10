@@ -5,6 +5,10 @@
 NoneType = type(None)
 
 
+def optional(cls):
+    return (cls, NoneType)
+
+
 class SlotDefinedClass(object):
     __slots__ = tuple()  # Names of attributes
     __types__ = {}  # Optional mapping of attribute to expected type
@@ -53,7 +57,7 @@ class SlotDefinedClass(object):
         Args:
             attr (str)
         """
-        if isinstance(expected, type):
+        if isinstance(expected, (type, tuple)):
             # Base class
             assert isinstance(val, expected), \
                 "Expected type '{}' for attribute '{}'. Got '{}'".format(

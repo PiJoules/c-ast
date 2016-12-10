@@ -1,0 +1,31 @@
+# C Abstract Syntax Tree
+
+## Nodes
+- Text
+  - Module
+  - InlineText
+- Expression
+- Statement
+  - Variable declaration
+    - Type with variable, but no assignment
+    - {type} {variable};
+      - "int x;"
+  - Variable definition
+    - Type with variable and assignment
+    - {type} {variable} = {expr};
+      - "int x = func();"
+  - Variable assignment
+    - Variable and assignment only
+    - {variable} = {expr};
+        - "x = func();"
+    - Augmented assignment
+      - Variable edit and reassignment
+      - {variable} {op}= {expr};
+        - "x += func();"
+  - Expression statement
+- Control flow
+  - For
+  - Do while
+  - While
+  - If
+  - Switch

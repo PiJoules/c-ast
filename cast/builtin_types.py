@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from utils import SlotDefinedClass
+from .utils import SlotDefinedClass
 
 
 class Type(SlotDefinedClass):

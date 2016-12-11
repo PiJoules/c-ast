@@ -55,7 +55,7 @@ class SlotDefinedClass(object):
             elif attr in defaults:
                 val = defaults[attr]
             else:
-                raise RuntimeError("No value for attribute '{}' provided".format(attr))
+                raise RuntimeError("No value for attribute '{}' provided in class '{}'".format(attr, type(self)))
 
             self.__check_and_set_attr(attr, val)
 
@@ -95,8 +95,8 @@ class SlotDefinedClass(object):
 
             # Check keys and vals
             if val:
-                self.__check_type(attr, next(val.keys()), next(expected.keys()))
-                self.__check_type(attr, next(val.values()), next(expected.values()))
+                self.__check_type(attr, next(iter(val.keys())), next(iter(expected.keys())))
+                self.__check_type(attr, next(iter(val.values())), next(iter(expected.values())))
         else:
             raise RuntimeError("Uknown type handling for type '{}'".format(expected))
 

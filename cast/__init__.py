@@ -2,6 +2,7 @@
 
 from .utils import *
 from .builtin_types import *
+from .defaults import BASE_INDENT_SIZE
 
 
 class Node(SlotDefinedClass):
@@ -33,7 +34,11 @@ class AllowedFuncBodyNode(Mixin):
 
 
 class AllowedAllNode(AllowedModuleNode, AllowedFuncBodyNode):
-    """A node allowed in any body of code."""
+    """A node allowed anywhere."""
+
+
+class AssignableNode(Mixin):
+    """A node that can be assigned a value."""
 
 
 """
@@ -63,7 +68,7 @@ class Body(Node):
     __slots__ = ("contents", )
     __defaults__ = {"contents": []}
 
-    def lines(self, indent_size=4):
+    def lines(self, indent_size=BASE_INDENT_SIZE):
         for node in self.contents:
             for line in node.lines():
                 yield " " * indent_size + line
@@ -86,7 +91,7 @@ class Expression(Node):
     pass
 
 
-class Variable(Expression):
+class Variable(Expression, AssignableNode):
     __slots__ = ("name", )
     __types__ = {"name": str}
 
@@ -94,7 +99,7 @@ class Variable(Expression):
         yield self.name
 
 
-class Literal(Expression):
+class Literal(Expression, AssignableNode):
     __slots__ = ("value", )
 
     def lines(self):
@@ -129,16 +134,106 @@ class FloatLiteral(Literal):
         yield str(self.value)
 
 
+class ArrayLiteral(Literal):
+    __types__ = {"value": [Expression]}
+
+    def lines(self):
+        yield "{{{}}}".format(", ".join(map(str, self.value)))
+
+
+class ArrayDesignatedInitializer(Literal):
+    """
+    This is only allowed by GCC.
+    TODO: Check for compiler
+    """
+    __types__ = {"value": {(int, CharLiteral): Expression}}
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        yield "{"
+        for idx, expr in self.value.items():
+            yield " " * indent_size + "[{}]={},".format(idx, expr)
+        yield "}"
+
+
+class Access(Expression, AssignableNode):
+    pass
+
+
+class ArrayAccess(Access):
+    __slots__ = ("arr", "idx")
+    __types__ = {"arr": Expression, "idx": Expression}
+
+    def lines(self):
+        yield "{}[{}]".format(self.arr, self.idx)
+
+
+class StructLiteral(Literal):
+    __types__ = {"value": [Expression]}
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        yield "{"
+        for expr in self.value:
+            yield " " * indent_size + "{},".format(expr)
+        yield "}"
+
+
+class StructDesignatedInitializer(Literal):
+    """
+    This is only allowed by GCC.
+    TODO: Check for compiler
+    """
+    __types__ = {"value": {str: Expression}}
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        yield "{"
+        for attr, expr in self.value.items():
+            yield " " * indent_size + ".{}={},".format(attr, expr)
+        yield "}"
+
+
+class StructAccess(Access):
+    __slots__ = ("expr", "attr")
+    __types__ = {"expr": Expression, "attr": str}
+
+    def lines(self):
+        yield "{}.{}".format(self.expr, self.attr)
+
+
+class StructRefAccess(Access):
+    __slots__ = ("expr", "attr")
+    __types__ = {"expr": Expression, "attr": str}
+
+    def lines(self):
+        yield "{}->{}".format(self.expr, self.attr)
+
+
+class UnionAccess(Access):
+    __slots__ = ("expr", "attr")
+    __types__ = {"expr": Expression, "attr": str}
+
+    def lines(self):
+        yield "{}.{}".format(self.expr, self.attr)
+
+
+class UnionRefAccess(Access):
+    __slots__ = ("expr", "attr")
+    __types__ = {"expr": Expression, "attr": str}
+
+    def lines(self):
+        yield "{}->{}".format(self.expr, self.attr)
+
+
 class FunctionCall(Expression):
-    __slots__ = ("func_name", "args")
+    __slots__ = ("func", "args")
     __types__ = {
-        "func_name": str,
+        "func": (Expression, str),
         "args": [Expression]
     }
+    __defaults__ = {"args": []}
 
     def lines(self):
         yield "{name}({args})".format(
-            name=self.func_name,
+            name=self.func,
             args=", ".join(map(str, self.args))
         )
 
@@ -494,7 +589,7 @@ class VariableDefinition(Definition):
     """
     __slots__ = ("type", "name", "expr")
     __types__ = {
-        "name": str,
+        "name": (AssignableNode, str),
         "expr": Expression,
         "type": Type
     }
@@ -543,7 +638,7 @@ Assignments
 class VariableAssignment(Node):
     __slots__ = ("lhs", "op", "rhs")
     __types__ = {
-        "lhs": str,
+        "lhs": (AssignableNode, str),
         "op": optional(NumericOp),
         "rhs": Expression
     }
@@ -604,6 +699,81 @@ class VarDefStmt(Statement, AllowedFuncBodyNode):
         yield from self._lines_with_ending(self.defn.lines())
 
 
+class Continue(Statement, AllowedFuncBodyNode):
+    def lines(self):
+        yield "continue;"
+
+
+class Break(Statement, AllowedFuncBodyNode):
+    def lines(self):
+        yield "break;"
+
+
+class Group(Type):
+    __slots__ = Type.__slots__ + ("group_name", "attrs", )
+    __types__ = merge_dicts(Type.__types__, {
+        "group_name": str,
+        "attrs": [VarDeclStmt]
+    })
+
+    def __str__(self):
+        return "{} {}".format(self.group_name, self.name)
+
+    def whole(self, indent_size=BASE_INDENT_SIZE):
+        """The whole group representation."""
+        yield "{} {{".format(self)
+        for decl in self.attrs:
+            yield " " * indent_size + str(decl)
+        yield "}"
+
+
+class InlineGroup(Group):
+    """
+    The name is not specified and the string representation
+    of this group is the whole declaration of the fields.
+    """
+    __defaults__ = {"name": ""}
+
+    def __str__(self):
+        return "{} {{".format(self.group_name) + "; ".join(map(str, self.attrs)) + "}"
+
+
+class Struct(Group):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="struct", *args, **kwargs)
+
+
+class InlineStruct(InlineGroup):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="struct", *args, **kwargs)
+
+
+class Union(Group):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="union", *args, **kwargs)
+
+
+class InlineUnion(InlineGroup):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="union", *args, **kwargs)
+
+
+class GroupDefStmt(Statement, AllowedAllNode):
+    __slots__ = ("group", )
+    __types__ = {"group": Group}
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        yield from self._lines_with_ending(self.group.whole(indent_size))
+
+
+class StructDefStmt(GroupDefStmt):
+    __types__ = {"group": Struct}
+
+
+class UnionDefStmt(GroupDefStmt):
+    __types__ = {"group": Union}
+
+
 """
 Control flow
 """
@@ -640,33 +810,80 @@ class If(ControlFlowNode):
     }
     """
 
-    __slots__ = ("conditions", "bodies")
+    __slots__ = ("conds", "bodies")
     __types__ = {
-        "conditions": [Expression],
+        "conds": [Expression],
         "bodies": [ControlFlowBody]
     }
 
     def lines(self):
         yield "if ({cond}){{".format(
-            cond=self.conditions[0]
+            cond=self.conds[0]
         )
         # First body
         yield from self.bodies[0]
         yield "}"
 
         # Else if statements
-        for i in range(1, len(self.conditions)):
+        for i in range(1, len(self.conds)):
             yield "else if ({cond}){{".format(
-                cond=self.conditions[i]
+                cond=self.conds[i]
             )
             yield from self.bodies[i]
             yield "}"
 
 
-        if len(self.bodies) > len(self.conditions):
+        if len(self.bodies) > len(self.conds):
             yield "else {"
-            yield from self.bodies[len(self.conditions)]
+            yield from self.bodies[len(self.conds)]
             yield "}"
+
+
+class Switch(ControlFlowNode):
+    """
+    Similar to If
+    bodies is a list of lists containing Nodes.
+    There must be at least 1 body for every case.
+    For n cases, there can be either n or n+1 bodies,
+    where the first n are the bodies for each respective condition,
+    and the last is the default case.
+
+    switch ({cond}){
+        case {case1}:
+            {body1}
+        case {case2}:
+            {body2}
+        ...
+        case {casen}:
+            {bodyn}
+        default:
+            {bodyn+1}
+    }
+    """
+
+    __slots__ = ("cond", "cases", "bodies")
+    __types__ = {
+        "cond": Expression,
+        "cases": [Expression],
+        "bodies": [ControlFlowBody]
+    }
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        yield "switch ({cond}){{".format(
+            cond=self.cond
+        )
+
+        for i, case in enumerate(self.cases):
+            yield " " * indent_size + "case {}:".format(case)
+            for line in self.bodies[i]:
+                yield " " * indent_size + line
+
+        if len(self.bodies) > len(self.cases):
+            yield " " * indent_size + "default:".format(case)
+            for line in self.bodies[len(self.cases)]:
+                yield " " * indent_size + line
+
+        yield "}"
 
 
 class While(ControlFlowNode):

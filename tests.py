@@ -118,7 +118,7 @@ void main(int argc, char** argv){
     def test_function_call(self):
         """Test function call node."""
         self.assertEqual(str(FunctionCall(
-            func_name="printf",
+            func="printf",
             args=[
                 StringLiteral("abc"),
                 IntLiteral(123)
@@ -128,7 +128,7 @@ void main(int argc, char** argv){
     def test_if_statement(self):
         """Test if statement."""
         self.assertEqual(str(If(
-            conditions=[Variable("x")],
+            conds=[Variable("x")],
             bodies=[ControlFlowBody([ExprStmt(Variable("a"))])]
         )), """
 if (x){
@@ -136,7 +136,7 @@ if (x){
 }""".strip())
 
         self.assertEqual(str(If(
-            conditions=[Variable("x")],
+            conds=[Variable("x")],
             bodies=[
                 ControlFlowBody([ExprStmt(Variable("a"))]),
                 ControlFlowBody([ExprStmt(Variable("b"))]),
@@ -150,7 +150,7 @@ else {
 }""".strip())
 
         self.assertEqual(str(If(
-            conditions=[Variable("x"), Variable("y")],
+            conds=[Variable("x"), Variable("y")],
             bodies=[
                 ControlFlowBody([ExprStmt(Variable("a"))]),
                 ControlFlowBody([ExprStmt(Variable("b"))]),
@@ -164,7 +164,7 @@ else if (y){
 }""".strip())
 
         self.assertEqual(str(If(
-            conditions=[
+            conds=[
                 Variable("x"),
                 Variable("y"),
                 Variable("z"),
@@ -186,7 +186,7 @@ else if (z){
 }""".strip())
 
         self.assertEqual(str(If(
-            conditions=[
+            conds=[
                 Variable("x"),
                 Variable("y"),
                 Variable("z"),
@@ -214,11 +214,11 @@ else {
 
         # Nested if statements
         self.assertEqual(str(If(
-            conditions=[Variable("x")],
+            conds=[Variable("x")],
             bodies=[
                 ControlFlowBody([
                     If(
-                        conditions=[Variable("y")],
+                        conds=[Variable("y")],
                         bodies=[ControlFlowBody([ExprStmt(Variable("b"))])],
                     )
                 ])
@@ -284,6 +284,159 @@ for (int i = 0; i < 2; i++){
     z;
 }
                          """.strip())
+
+    def test_switch_statement(self):
+        """Test switch statement."""
+        self.assertEqual(str(Switch(
+            cond=Variable("x"),
+            cases=[
+                Variable("y"),
+                Variable("z")
+            ],
+            bodies=[
+                ControlFlowBody([ExprStmt(FunctionCall("y", [])), Break()]),
+                ControlFlowBody([Break()]),
+                ControlFlowBody([Break()])
+            ]
+        )), """
+switch (x){
+    case y:
+        y();
+        break;
+    case z:
+        break;
+    default:
+        break;
+}
+                         """.strip())
+
+    def test_arrays(self):
+        """Test arrays."""
+        self.assertEqual(str(ArrayLiteral(
+            [FloatLiteral(100.0), FloatLiteral(10.0), FloatLiteral(0.13)]
+        )), "{100.0, 10.0, 0.13}")
+
+        self.assertEqual(str(ArrayAccess(
+            FunctionCall(Variable("func1"), []), FunctionCall(Variable("func2"), [])
+        )), "func1()[func2()]")
+
+        # Can be one of multiple values
+        self.assertIn(str(ArrayDesignatedInitializer(
+            {
+                4: IntLiteral(100),
+                10: FunctionCall("func1")
+            }
+        )), ("""
+{
+    [4]=100,
+    [10]=func1(),
+}
+                         """.strip(),
+    """
+{
+    [10]=func1(),
+    [4]=100,
+}
+                         """.strip()
+        ))
+
+    def test_struct(self):
+        """Test structs."""
+        self.assertEqual(str(StructLiteral(
+            [FloatLiteral(100.0), FloatLiteral(10.0), FloatLiteral(0.13)]
+        )), """
+{
+    100.0,
+    10.0,
+    0.13,
+}""".strip())
+
+        self.assertEqual(str(StructAccess(
+            FunctionCall(Variable("func1")), "attr2"
+        )), "func1().attr2")
+
+        self.assertEqual(str(StructRefAccess(
+            FunctionCall(Variable("func1")), "attr2"
+        )), "func1()->attr2")
+
+        # Can be one of multiple values
+        self.assertIn(str(StructDesignatedInitializer(
+            {
+                "attr1": IntLiteral(100),
+                "attr2": FunctionCall("func1")
+            }
+        )), ("""
+{
+    .attr1=100,
+    .attr2=func1(),
+}
+                         """.strip(),
+    """
+{
+    .attr2=func1(),
+    .attr1=100,
+}
+                         """.strip()
+        ))
+
+        self.assertEqual(str(StructDefStmt(Struct(
+            name="S",
+            attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+        ))), """
+struct S {
+    char i;
+};
+                         """.strip())
+
+        self.assertEqual(str(StructDefStmt(Struct(
+            name="S",
+            attrs=[
+                VarDeclStmt(VariableDeclaration(CharType(), "i")),
+                VarDeclStmt(VariableDeclaration(InlineStruct(
+                    attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+                ), "i2"))
+            ]
+        ))), """
+struct S {
+    char i;
+    struct {char i;} i2;
+};
+                         """.strip())
+
+    def test_union(self):
+        """Test union."""
+        self.assertEqual(str(UnionAccess(
+            FunctionCall(Variable("func1")), "attr2"
+        )), "func1().attr2")
+
+        self.assertEqual(str(UnionRefAccess(
+            FunctionCall(Variable("func1")), "attr2"
+        )), "func1()->attr2")
+
+        self.assertEqual(str(UnionDefStmt(Union(
+            name="S",
+            attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+        ))), """
+union S {
+    char i;
+};
+                         """.strip())
+
+        self.assertEqual(str(UnionDefStmt(Union(
+            name="S",
+            attrs=[
+                VarDeclStmt(VariableDeclaration(CharType(), "i")),
+                VarDeclStmt(VariableDeclaration(InlineUnion(
+                    attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+                ), "i2"))
+            ]
+        ))), """
+union S {
+    char i;
+    union {char i;} i2;
+};
+                         """.strip())
+
 
 
 

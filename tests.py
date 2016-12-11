@@ -3,8 +3,7 @@
 
 import unittest
 
-from cast.nodes import *
-from cast.builtin_types import *
+from cast import *
 
 
 class TestTypes(unittest.TestCase):
@@ -47,8 +46,8 @@ class TestNodes(unittest.TestCase):
         """Test base statement node."""
         self.assertEqual(str(Statement(InlineText("text"))), "text;")
         node = Module([
-            Statement(InlineText("text1")),
-            Statement(InlineText("text2")),
+            InlineText("text1"),
+            InlineText("text2"),
         ])
         self.assertEqual(str(node), "text1;\ntext2;")
 
@@ -80,11 +79,6 @@ class TestNodes(unittest.TestCase):
             expr=IntLiteral(2),
         )), "int x = 2")
 
-        self.assertEqual(str(VariableDefinition(
-            name="x",
-            expr=IntLiteral(2),
-        )), "x = 2")
-
     def test_function_definition(self):
         """Test function definition."""
         self.assertEqual(str(FunctionDefinition(
@@ -94,27 +88,22 @@ class TestNodes(unittest.TestCase):
                 VariableDeclaration(IntType(), "argc"),
                 VariableDeclaration(Pointer(StringType()), "argv")
             ]),
-            body=[
-                Statement(VariableDefinition(
+            body=FunctionBody([
+                DefStmt(VariableDefinition(
                     type=IntType(),
                     name="x",
                     expr=IntLiteral(2),
                 )),
-                Statement(VariableDefinition(
+                DefStmt(VariableDefinition(
                     type=CharType(),
                     name="c",
                     expr=CharLiteral("s"),
                 )),
-                Statement(VariableDefinition(
-                    name="c",
-                    expr=CharLiteral("a"),
-                )),
-            ]
+            ])
         )), """
 void main(int argc, char** argv){
     int x = 2;
     char c = 's';
-    c = 'a';
 }""".strip())
 
     def test_function_call(self):
@@ -236,7 +225,7 @@ if (x){
         """Test while loop."""
         self.assertEqual(str(While(
             condition=Variable("x"),
-            body=[Statement(Variable("y"))]
+            body=ControlFlowBody([Statement(Variable("y"))])
         )), """
 while (x){
     y;
@@ -264,7 +253,7 @@ while (x){
         """Test do while loop."""
         self.assertEqual(str(DoWhile(
             condition=Variable("x"),
-            body=[Statement(Variable("y"))]
+            body=ControlFlowBody([ExprStatement(Variable("y"))])
         )), """
 do {
     y;

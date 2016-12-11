@@ -60,8 +60,8 @@ class SlotDefinedClass(object):
         if isinstance(expected, (type, tuple)):
             # Base class
             assert isinstance(val, expected), \
-                "Expected type '{}' for attribute '{}'. Got '{}'".format(
-                    expected, attr, type(val)
+                "Expected type '{}' for attribute '{}' in class '{}'. Got '{}'".format(
+                    expected, attr, type(self), type(val)
                 )
         elif isinstance(expected, list):
             # Check container

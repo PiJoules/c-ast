@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 
-
 from .utils import *
+from .builtin_types import *
 
 
 class Node(SlotDefinedClass):
+    """Base node class."""
+
     def lines(self):
         """
         Yields:
@@ -17,5 +19,708 @@ class Node(SlotDefinedClass):
 
     def __iter__(self):
         yield from self.lines()
+
+"""
+Mixins
+"""
+
+class AllowedModuleNode(Mixin):
+    """A Node allowed in the body of a module."""
+
+
+class AllowedFuncBodyNode(Mixin):
+    """A node allowed in a function body."""
+
+
+class AllowedAllNode(AllowedModuleNode, AllowedFuncBodyNode):
+    """A node allowed in any body of code."""
+
+
+"""
+Text based nodes
+"""
+
+
+class InlineText(Node, AllowedAllNode):
+    """Literal text"""
+    __slots__ = ("text", )
+    __types__ = {"text": str}
+    __defaults__ = {"text": ""}
+
+    def lines(self):
+        yield self.text
+
+
+"""
+Body nodes for blocks of text
+"""
+
+class Body(Node):
+    """
+    Block of lines.
+    Statements have semicolons appended to them
+    """
+    __slots__ = ("contents", )
+    __defaults__ = {"contents": []}
+
+    def lines(self, indent_size=4):
+        for node in self.contents:
+            for line in node.lines():
+                yield " " * indent_size + line
+
+
+class Module(Body):
+    # TODO: Add preprocessor stuff later
+    __types__ = {"contents": [AllowedFuncBodyNode]}
+
+    def lines(self):
+        # Module is root, so 0 indent_size
+        yield from super().lines(indent_size=0)
+
+
+"""
+Expressions
+"""
+
+class Expression(Node):
+    pass
+
+
+class Variable(Expression):
+    __slots__ = ("name", )
+    __types__ = {"name": str}
+
+    def lines(self):
+        yield self.name
+
+
+class Literal(Expression):
+    __slots__ = ("value", )
+
+    def lines(self):
+        yield self.value
+
+
+class CharLiteral(Literal):
+    __types__ = {"value": str}
+
+    def lines(self):
+        yield "'{}'".format(self.value)
+
+
+class StringLiteral(Literal):
+    __types__ = {"value": str}
+
+    def lines(self):
+        yield '"{}"'.format(self.value)
+
+
+class IntLiteral(Literal):
+    __types__ = {"value": int}
+
+    def lines(self):
+        yield str(self.value)
+
+
+class FloatLiteral(Literal):
+    __types__ = {"value": float}
+
+    def lines(self):
+        yield str(self.value)
+
+
+class FunctionCall(Expression):
+    __slots__ = ("func_name", "args")
+    __types__ = {
+        "func_name": str,
+        "args": [Expression]
+    }
+
+    def lines(self):
+        yield "{name}({args})".format(
+            name=self.func_name,
+            args=", ".join(map(str, self.args))
+        )
+
+
+class Cast(Expression):
+    __slots__ = ("type", "expr")
+    __types__ = {
+        "type": Type,
+        "expr": Expression
+    }
+
+    def lines(self):
+        yield "({})({})".format(self.type, self.expr)
+
+
+class OrderedExpr(Expression):
+    """An expression where order of operations matters."""
+
+
+"""
+Operations
+"""
+
+class Operator(Node):
+    __slots__ = ("symbol", )
+    __types__ = {"symbol": str}
+
+    def lines(self):
+        yield self.symbol
+
+
+class BinOp(Operator):
+    """An operation that requires 2 arguments."""
+
+
+class UnOp(Operator):
+    """An operation that requires 1 argument."""
+
+
+class Increment(UnOp):
+    def __init__(self):
+        super().__init__("++")
+
+
+class Decrement(UnOp):
+    def __init__(self):
+        super().__init__("--")
+
+
+class Address(UnOp):
+    def __init__(self):
+        super().__init__("&")
+
+
+class Reference(UnOp):
+    def __init__(self):
+        super().__init__("*")
+
+
+class Positive(UnOp):
+    def __init__(self):
+        super().__init__("+")
+
+
+class Negative(UnOp):
+    def __init__(self):
+        super().__init__("-")
+
+
+class Complement(UnOp):
+    def __init__(self):
+        super().__init__("~")
+
+
+class Negation(UnOp):
+    def __init__(self):
+        super().__init__("!")
+
+
+class NumericOp(BinOp):
+    """Operator that is meant to return a range of numeric values, as opposed
+    boolean operations which return either 0 or 1.
+
+    These operations can be used with augmented assignments.
+    """
+
+
+class ArithmeticOp(NumericOp):
+    pass
+
+
+class Add(ArithmeticOp):
+    def __init__(self):
+        super().__init__("+")
+
+
+class Sub(ArithmeticOp):
+    def __init__(self):
+        super().__init__("-")
+
+
+class Mult(ArithmeticOp):
+    def __init__(self):
+        super().__init__("*")
+
+
+class Div(ArithmeticOp):
+    def __init__(self):
+        super().__init__("/")
+
+
+class Mod(ArithmeticOp):
+    def __init__(self):
+        super().__init__("%")
+
+
+class BitwiseOp(BinOp):
+    pass
+
+
+class LShift(BitwiseOp):
+    def __init__(self):
+        super().__init__("<<")
+
+
+class RShift(BitwiseOp):
+    def __init__(self):
+        super().__init__(">>")
+
+
+class BitOr(BitwiseOp):
+    def __init__(self):
+        super().__init__("|")
+
+
+class BitOr(BitwiseOp):
+    def __init__(self):
+        super().__init__("&")
+
+
+class BitXor(BitwiseOp):
+    def __init__(self):
+        super().__init__("^")
+
+
+class BoolOp(BinOp):
+    """Operator that is meant to return a boolean value (0 or 1)"""
+
+
+class Or(BoolOp):
+    def __init__(self):
+        super().__init__("||")
+
+
+class And(BoolOp):
+    def __init__(self):
+        super().__init__("&&")
+
+
+class CompareOp(BoolOp):
+    """Operator for comparing 2 values."""
+
+
+class Eq(CompareOp):
+    def __init__(self):
+        super().__init__("==")
+
+
+class NotEq(CompareOp):
+    def __init__(self):
+        super().__init__("!=")
+
+
+class Lt(CompareOp):
+    def __init__(self):
+        super().__init__("<")
+
+
+class LtE(CompareOp):
+    def __init__(self):
+        super().__init__("<=")
+
+
+class Gt(CompareOp):
+    def __init__(self):
+        super().__init__(">")
+
+
+class GtE(CompareOp):
+    def __init__(self):
+        super().__init__(">=")
+
+
+class Increment(Expression):
+    __slots__ = ("var", )
+    __types__ = {"var": str}
+
+
+class PostInc(Increment):
+    def lines(self):
+        yield "{}++".format(self.var)
+
+
+class PreInc(Increment):
+    def lines(self):
+        yield "++{}".format(self.var)
+
+
+class Decrement(Expression):
+    __slots__ = ("var", )
+    __types__ = {"var": str}
+
+
+class PostDec(Decrement):
+    def lines(self):
+        yield "{}--".format(self.var)
+
+
+class PreDec(Decrement):
+    def lines(self):
+        yield "--{}".format(self.var)
+
+
+class UnaryOp(OrderedExpr):
+    """
+    An expression that is in the format {op}{expr} or {expr}{op}
+    """
+    __slots__ = ("op", "expr")
+    __types__ = {
+        "op": BinOp,
+        "expr": Expression
+    }
+
+    def lines(self):
+        # Wrap in parenthesis to preserve order of operations
+        if isinstance(self.expr, OrderedExpr):
+            expr = "({expr})"
+        else:
+            expr = "{expr}"
+        yield ("{op} " + expr).format(
+            op=self.op,
+            expr=self.expr
+        )
+
+
+class BinaryOp(OrderedExpr):
+    """
+    An expression that is in the format {lhs} {op} {rhs}
+    """
+    __slots__ = ("lhs", "op", "rhs")
+    __types__ = {
+        "lhs": Expression,
+        "op": BinOp,
+        "rhs": Expression
+    }
+
+    def lines(self):
+        # Wrap in parenthesis to preserve order of operations
+        if isinstance(self.lhs, OrderedExpr):
+            lhs = "({lhs})"
+        else:
+            lhs = "{lhs}"
+        if isinstance(self.rhs, OrderedExpr):
+            rhs = "({rhs})"
+        else:
+            rhs = "{rhs}"
+        yield (lhs + " {op} " + rhs).format(
+            lhs=self.lhs,
+            op=self.op,
+            rhs=self.rhs
+        )
+
+
+class BoolExpr(BinaryOp):
+    __types__ = merge_dicts(BinaryOp.__types__, {"op": BoolOp})
+
+
+"""
+Declarations
+"""
+
+class Declaration(Node):
+    pass
+
+
+class InlineDecl(Declaration):
+    pass
+
+
+class InlineFuncDecl(InlineDecl):
+    """
+    Similar to FunctionDeclaration, but treats functions as function pointers.
+    This is how function declarations are used in structs as attributes or
+    arguments in another function.
+    """
+
+    def lines(self):
+        yield "{return_type} (*{name})({args})".format(
+            return_type=self.return_type,
+            name=self.name,
+            args=self.args
+        )
+
+
+class VariableDeclaration(InlineDecl):
+    """
+    {type} {varname}
+    """
+    __slots__ = ("type", "name")
+    __types__ = {"type": Type, "name": str}
+
+    def lines(self):
+        yield "{} {}".format(self.type, self.name)
+
+
+class ArgumentDeclarations(Node):
+    """
+    {VariableDeclaration}, {VariableDeclaration}, ...
+    """
+    __slots__ = ("args", )
+    __types__ = {"args": [InlineDecl]}
+
+    def lines(self):
+        yield ", ".join(map(str, self.args))
+
+
+class FunctionDeclaration(Declaration):
+    __slots__ = ("name", "return_type", "args")
+    __types__ = {
+        "name": str,
+        "return_type": Type,
+        "args": ArgumentDeclarations
+    }
+
+    def lines(self):
+        yield "{return_type} {name}({args})".format(
+            return_type=self.return_type,
+            name=self.name,
+            args=self.args
+        )
+
+"""
+Definitions
+"""
+
+class Definition(Node):
+    pass
+
+
+class VariableDefinition(Definition):
+    """
+    {type} {name} = {expr}
+    """
+    __slots__ = ("type", "name", "expr")
+    __types__ = {
+        "name": str,
+        "expr": Expression,
+        "type": Type
+    }
+
+    def lines(self):
+        yield "{type} {name} = {expr}".format(
+            type=self.type,
+            name=self.name,
+            expr=self.expr
+        )
+
+
+class FunctionBody(Body):
+    """Similar to module, but function definition is not allowed."""
+    __types__ = {"contents": [AllowedFuncBodyNode]}
+
+
+class FunctionDefinition(Definition):
+    """
+    {return_type} {name}({args}){{
+        {body}
+    }}
+    """
+    __slots__ = ("return_type", "name", "args", "body")
+    __types__ = {
+        "return_type": Type,
+        "name": str,
+        "args": ArgumentDeclarations,
+        "body": FunctionBody
+    }
+
+    def lines(self):
+        yield "{return_type} {name}({args}){{".format(
+            return_type=self.return_type,
+            name=self.name,
+            args=self.args
+        )
+        yield from self.body
+        yield "}"
+
+
+"""
+Assignments
+"""
+
+class VariableAssignment(Node):
+    __slots__ = ("lhs", "op", "rhs")
+    __types__ = {
+        "lhs": str,
+        "op": optional(NumericOp),
+        "rhs": Expression
+    }
+    __defaults__ = {"op": None}
+
+    def lines(self):
+        yield "{lhs} {op}= {rhs}".format(
+            lhs=self.lhs,
+            rhs=self.rhs,
+            op=self.op or ""
+        )
+
+
+class AugmentedAssgn(VariableAssignment):
+    __types__ = merge_dicts(VariableAssignment.__types__, {"op": NumericOp})
+
+
+
+"""
+Statements
+"""
+
+class Statement(Node):
+    def _lines_with_ending(self, lines, ending=";"):
+        # Make the last element have a semicolon included
+        val = next(lines)
+        next_val = next(lines, None)
+        while next_val is not None:
+            yield val
+            val = next_val
+            next_val = next(lines, None)
+        # val is the last elem in the iterator
+        yield "{}{}".format(val, ending)
+
+
+
+class ExprStmt(Statement, AllowedFuncBodyNode):
+    __slots__ = ("expr", )
+    __types__ = {"expr": Expression}
+
+    def lines(self):
+        yield from self._lines_with_ending(self.expr.lines())
+
+
+class VarDeclStmt(Statement, AllowedFuncBodyNode):
+    __slots__ = ("decl", )
+    __types__ = {"decl": Declaration}
+
+    def lines(self):
+        yield from self._lines_with_ending(self.decl.lines())
+
+
+class VarDefStmt(Statement, AllowedFuncBodyNode):
+    __slots__ = ("defn", )
+    __types__ = {"defn": Definition}
+
+    def lines(self):
+        yield from self._lines_with_ending(self.defn.lines())
+
+
+"""
+Control flow
+"""
+
+class ControlFlowBody(Body):
+    __types__ = {"contents": [AllowedFuncBodyNode]}
+
+
+class ControlFlowNode(Node, AllowedFuncBodyNode):
+    pass
+
+
+class If(ControlFlowNode):
+    """
+    If requires at least 1 condition.
+    bodies is a list of lists containing Nodes.
+    There must be at least 1 body for every condition.
+    For n conditions, there can be either n or n+1 bodies,
+    where the first n are the bodies for each respective condition,
+    and the last is the else condition.
+
+    if ({cond1}){
+        {body1}
+    }
+    else if ({cond2}){
+        {body2}
+    }
+    ...
+    else if ({condn}){
+        {bodyn}
+    }
+    else {
+        {bodyn+1}
+    }
+    """
+
+    __slots__ = ("conditions", "bodies")
+    __types__ = {
+        "conditions": [Expression],
+        "bodies": [ControlFlowBody]
+    }
+
+    def lines(self):
+        yield "if ({cond}){{".format(
+            cond=self.conditions[0]
+        )
+        # First body
+        yield from self.bodies[0]
+        yield "}"
+
+        # Else if statements
+        for i in range(1, len(self.conditions)):
+            yield "else if ({cond}){{".format(
+                cond=self.conditions[i]
+            )
+            yield from self.bodies[i]
+            yield "}"
+
+
+        if len(self.bodies) > len(self.conditions):
+            yield "else {"
+            yield from self.bodies[len(self.conditions)]
+            yield "}"
+
+
+class While(ControlFlowNode):
+    __slots__ = ("condition", "body")
+    __types__ = {
+        "condition": Expression,
+        "body": ControlFlowBody
+    }
+
+    def lines(self):
+        yield "while ({cond}){{".format(
+            cond=self.condition
+        )
+        yield from self.body
+        yield "}"
+
+
+
+class DoWhile(ControlFlowNode):
+    __slots__ = ("condition", "body")
+    __types__ = {
+        "condition": Expression,
+        "body": ControlFlowBody
+    }
+
+    def lines(self):
+        yield "do {"
+        yield from self.body
+        yield "}} while ({cond});".format(
+            cond=self.condition
+        )
+
+
+class For(ControlFlowNode):
+    __slots__ = ("start", "cond", "update", "body")
+    __types__ = {
+        "start": optional(VariableDefinition),
+        "cond": optional(Expression),
+        "update": optional((Expression, VariableAssignment)),
+        "body": ControlFlowBody
+    }
+    __defaults__ = {
+        "start": None,
+        "cond": None,
+        "update": None
+    }
+
+    def lines(self):
+        yield "for ({start}; {cond}; {update}){{".format(
+            start=self.start or "",
+            cond=self.cond or "",
+            update=self.update or ""
+        )
+        yield from self.body
+        yield "}"
 
 

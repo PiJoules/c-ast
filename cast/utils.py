@@ -5,8 +5,20 @@
 NoneType = type(None)
 
 
-def optional(cls):
-    return (cls, NoneType)
+def optional(t):
+    if isinstance(t, tuple):
+        return t + (NoneType, )
+    return (t, NoneType)
+
+
+class Mixin(object):
+    """
+    Base mixin class used for describing objects that share mutliple parents.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Make sure that the next parent is called
+        super().__init__(*args, **kwargs)
 
 
 class SlotDefinedClass(object):
@@ -15,12 +27,19 @@ class SlotDefinedClass(object):
     __defaults__ = {}  # Optional default values for an attribute
 
     def __init__(self, *args, **kwargs):
+        """
+        - Note this must be placed last in the chain of parents since this
+        method does not call super()
+        """
         slots = self.__slots__
         defaults = self.__defaults__
 
         set_attrs = set()
 
         # Go through args first, then kwargs
+        if len(args) > len(slots):
+            raise RuntimeError("Too many arguments provided. Args {} provided for {} when args {} were expected.".format(args, type(self), slots))
+
         for i, val in enumerate(args):
             attr = slots[i]
             self.__check_and_set_attr(attr, val)

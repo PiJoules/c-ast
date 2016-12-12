@@ -381,7 +381,7 @@ switch (x){
 
         self.assertEqual(str(StructDefStmt(Struct(
             name="S",
-            attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+            contents=[VariableDeclaration(CharType(), "i")]
         ))), """
 struct S {
     char i;
@@ -390,11 +390,11 @@ struct S {
 
         self.assertEqual(str(StructDefStmt(Struct(
             name="S",
-            attrs=[
-                VarDeclStmt(VariableDeclaration(CharType(), "i")),
-                VarDeclStmt(VariableDeclaration(InlineStruct(
-                    attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
-                ), "i2"))
+            contents=[
+                VariableDeclaration(CharType(), "i"),
+                VariableDeclaration(InlineStruct(
+                    contents=[VariableDeclaration(CharType(), "i")]
+                ), "i2")
             ]
         ))), """
 struct S {
@@ -415,7 +415,7 @@ struct S {
 
         self.assertEqual(str(UnionDefStmt(Union(
             name="S",
-            attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
+            contents=[VariableDeclaration(CharType(), "i")]
         ))), """
 union S {
     char i;
@@ -424,11 +424,11 @@ union S {
 
         self.assertEqual(str(UnionDefStmt(Union(
             name="S",
-            attrs=[
-                VarDeclStmt(VariableDeclaration(CharType(), "i")),
-                VarDeclStmt(VariableDeclaration(InlineUnion(
-                    attrs=[VarDeclStmt(VariableDeclaration(CharType(), "i"))]
-                ), "i2"))
+            contents=[
+                VariableDeclaration(CharType(), "i"),
+                VariableDeclaration(InlineUnion(
+                    contents=[VariableDeclaration(CharType(), "i")]
+                ), "i2")
             ]
         ))), """
 union S {
@@ -436,6 +436,23 @@ union S {
     union {char i;} i2;
 };
                          """.strip())
+
+    def test_enum(self):
+        """Test enum."""
+        self.assertEqual(str(EnumDefStmt(Enum(
+            name="e",
+            contents=["a", "b"]
+        ))), """
+enum e {
+    a,
+    b,
+};
+                         """.strip())
+
+        self.assertEqual(str(InlineEnum(
+            name="e",
+            contents=["a", "b"]
+        )), "enum {a, b,}")
 
 
 

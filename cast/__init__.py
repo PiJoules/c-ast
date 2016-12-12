@@ -21,6 +21,7 @@ class Node(SlotDefinedClass):
     def __iter__(self):
         yield from self.lines()
 
+
 """
 Mixins
 """
@@ -710,10 +711,10 @@ class Break(Statement, AllowedFuncBodyNode):
 
 
 class Group(Type):
-    __slots__ = Type.__slots__ + ("group_name", "attrs", )
+    __slots__ = Type.__slots__ + ("group_name", "contents", "separator")
     __types__ = merge_dicts(Type.__types__, {
         "group_name": str,
-        "attrs": [VarDeclStmt]
+        "separator": str,
     })
 
     def __str__(self):
@@ -722,9 +723,23 @@ class Group(Type):
     def whole(self, indent_size=BASE_INDENT_SIZE):
         """The whole group representation."""
         yield "{} {{".format(self)
-        for decl in self.attrs:
-            yield " " * indent_size + str(decl)
+        for content in self.contents:
+            yield " " * indent_size + str(content) + self.separator
         yield "}"
+
+
+class UnattributedGroup(Group):
+    __types__ = merge_dicts(Group.__types__, {
+        "contents": [str],
+    })
+    __defaults__ = {"separator": ","}
+
+
+class AttributedGroup(Group):
+    __types__ = merge_dicts(Group.__types__, {
+        "contents": [VariableDeclaration]
+    })
+    __defaults__ = {"separator": ";"}
 
 
 class InlineGroup(Group):
@@ -734,28 +749,50 @@ class InlineGroup(Group):
     """
     __defaults__ = {"name": ""}
 
+    def _inline_contents(self):
+        for content in self.contents:
+            yield str(content) + self.separator
+
     def __str__(self):
-        return "{} {{".format(self.group_name) + "; ".join(map(str, self.attrs)) + "}"
+        return "{} {{".format(self.group_name) + " ".join(map(str, self._inline_contents())) + "}"
 
 
-class Struct(Group):
+class AttributedInlineGroup(InlineGroup, AttributedGroup):
+    __defaults__ = merge_dicts(InlineGroup.__defaults__, AttributedGroup.__defaults__)
+
+
+class UnattributedInlineGroup(InlineGroup, UnattributedGroup):
+    __defaults__ = merge_dicts(InlineGroup.__defaults__, UnattributedGroup.__defaults__)
+
+
+class Struct(AttributedGroup):
     def __init__(self, *args, **kwargs):
         super().__init__(group_name="struct", *args, **kwargs)
 
 
-class InlineStruct(InlineGroup):
+class InlineStruct(AttributedInlineGroup):
     def __init__(self, *args, **kwargs):
         super().__init__(group_name="struct", *args, **kwargs)
 
 
-class Union(Group):
+class Union(AttributedGroup):
     def __init__(self, *args, **kwargs):
         super().__init__(group_name="union", *args, **kwargs)
 
 
-class InlineUnion(InlineGroup):
+class InlineUnion(AttributedInlineGroup):
     def __init__(self, *args, **kwargs):
         super().__init__(group_name="union", *args, **kwargs)
+
+
+class Enum(UnattributedGroup):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="enum", *args, **kwargs)
+
+
+class InlineEnum(UnattributedInlineGroup):
+    def __init__(self, *args, **kwargs):
+        super().__init__(group_name="enum", *args, **kwargs)
 
 
 class GroupDefStmt(Statement, AllowedAllNode):
@@ -772,6 +809,10 @@ class StructDefStmt(GroupDefStmt):
 
 class UnionDefStmt(GroupDefStmt):
     __types__ = {"group": Union}
+
+
+class EnumDefStmt(GroupDefStmt):
+    __types__ = {"group": Enum}
 
 
 """

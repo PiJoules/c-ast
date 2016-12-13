@@ -454,6 +454,32 @@ enum e {
             contents=["a", "b"]
         )), "enum {a, b,}")
 
+    def test_define(self):
+        """Test define macro."""
+        self.assertEqual(str(Define(
+            symbol="symbol",
+            value=[InlineText("value")]
+        )), "#define symbol value")
+
+        self.assertEqual(str(Define(
+            symbol="symbol",
+            value=[While(Variable("x"), ControlFlowBody([
+                ExprStmt(Variable("y")),
+                ExprStmt(Variable("z"))
+            ]))]
+        )), """
+#define symbol \\
+    while (x){ \\
+        y; \\
+        z; \\
+    }
+            """.strip())
+
+    def test_include(self):
+        """Test include macro."""
+        self.assertEqual(str(Include("test.h")), "#include <test.h>")
+        self.assertEqual(str(Include("test.h", system=False)), "#include \"test.h\"")
+
 
 
 

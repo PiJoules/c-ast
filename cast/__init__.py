@@ -982,3 +982,38 @@ class For(ControlFlowNode):
         yield "}"
 
 
+"""
+Preprocessors
+"""
+
+class Preprocessor(Node):
+    pass
+
+
+class Define(Preprocessor):
+    __slots__ = ("symbol", "value")
+    __types__ = {"symbol": str, "value": [Node]}
+
+    def lines(self, indent_size=BASE_INDENT_SIZE):
+        lines = [line for node in self.value for line in node]
+        if len(lines) == 1:
+            yield "#define {} {}".format(self.symbol, lines[0])
+        else:
+            yield "#define {} \\".format(self.symbol)
+            for i in range(len(lines) - 1):
+                yield " " * indent_size + lines[i] + " \\"
+            yield " " * indent_size + lines[-1]
+
+
+class Include(Preprocessor):
+    __slots__ = ("filename", "system")
+    __types__ = {"filename": str, "system": bool}
+    __defaults__ = {"system": True}
+
+    def lines(self):
+        if self.system:
+            yield "#include <{}>".format(self.filename)
+        else:
+            yield "#include \"{}\"".format(self.filename)
+
+

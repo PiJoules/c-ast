@@ -675,6 +675,13 @@ class Statement(Node):
         yield "{}{}".format(val, ending)
 
 
+class Return(Statement):
+    __slots__ = ("expr", )
+    __types__ = {"expr": Expression}
+
+    def lines(self):
+        yield "return {};".format(self.expr)
+
 
 class ExprStmt(Statement, AllowedFuncBodyNode):
     __slots__ = ("expr", )

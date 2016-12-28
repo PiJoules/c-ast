@@ -605,7 +605,7 @@ class VariableDefinition(Definition):
 
 class FunctionBody(Body):
     """Similar to module, but function definition is not allowed."""
-    __types__ = {"contents": [AllowedFuncBodyNode]}
+    __types__ = {"contents": [Node]}
 
 
 class FunctionDefinition(Definition):
@@ -827,7 +827,7 @@ Control flow
 """
 
 class ControlFlowBody(Body):
-    __types__ = {"contents": [AllowedFuncBodyNode]}
+    __types__ = {"contents": [Node]}
 
 
 class ControlFlowNode(Node, AllowedFuncBodyNode):

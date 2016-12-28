@@ -77,7 +77,7 @@ class Body(Node):
 
 class Module(Body):
     # TODO: Add preprocessor stuff later
-    __types__ = {"contents": [AllowedFuncBodyNode]}
+    __types__ = {"contents": [Node]}
 
     def lines(self):
         # Module is root, so 0 indent_size
